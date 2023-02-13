@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="7e24c4f6-92a5-4299-bfa4-adfc0b988467" >
+		<http:listener-connection host="localhost" port="8081" />
+	</http:listener-config>
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="2193b4cb-403b-404c-8e20-a2e698d420d5" basePath="/cloudhub/api/v2">
+		<http:request-connection protocol="HTTPS" host="anypoint.mulesoft.com"/>
+	</http:request-config>
+	<http:request-config name="HTTP_Request_configuration1" doc:name="HTTP Request configuration" doc:id="7aa6affa-960d-4f30-95e4-09f90bde4c42" basePath="/accounts" >
+		<http:request-connection protocol="HTTPS" host="anypoint.mulesoft.com" />
+	</http:request-config>
+	<flow name="t1Flow" doc:id="f27718dc-0703-4eff-aca4-e7a33db25d74" >
+		<http:listener doc:name="Listener" doc:id="98ca2841-96f5-4341-996a-3b06b613db81" config-ref="HTTP_Listener_config" path="/t" allowedMethods="GET" />
+		<flow-ref doc:name="Flow Reference" doc:id="a7ec54fa-f236-40bf-889d-792960d18214" name="UpdateValues"/>
+		<ee:transform doc:name="Transform Message" doc:id="e7cb9c55-a6a3-4616-a0d6-7ec11b711998" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "Hello World"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="06b2ffca-60c8-4cb7-b501-de477d373002" message='#[payload]'/>
+	</flow>
+	<flow name="tokenGenerationFlow" doc:id="ca54507e-62bd-48e6-a733-6acc1e90c72d" >
+		<http:request method="POST" doc:name="Request" doc:id="594665d6-d84a-4834-9230-f3d29a900308" config-ref="HTTP_Request_configuration1" path="/login">
+			<http:body ><![CDATA[#[%dw 2.0
+output application/json
+---
+{
+	"username":"shivamcyntra",
+	"password":"Mulesoft@007"
+}]]]></http:body>
+		</http:request>
+		<ee:transform doc:name="Transform Message" doc:id="ee4045b3-880f-4de2-8c7d-1378371605aa">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload.token_type ++ " " ++ payload.access_token]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="06b3088b-9df8-4f48-a4c8-87ebc2d649ff" variableName="token"/>
+	</flow>
+	<flow name="UpdateValues" doc:id="c31d7fa0-baa9-4ce0-af4e-c467908fc111" >
+		<flow-ref doc:name="Flow Reference" doc:id="928f8a91-8a2f-4f4f-a628-920aa779ef5a" name="tokenGenerationFlow"/>
+		<ee:transform doc:name="Transform Message" doc:id="a09b4dfe-2e5b-4673-aeb9-125f2f0d0d49" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+
+{
+
+    "autoStart": true,
+    "appInfoJson":{"properties": {"username": "shivam"}}
+    	
+
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<http:request method="PUT" doc:name="Request" doc:id="4c7cebc9-b6fb-493b-9d59-588a11570749" config-ref="HTTP_Request_configuration" path="/applications/task1">
+			<http:headers ><![CDATA[#[output application/json
+---
+{
+	"x-anypnt-org-id" : "acb67906-4584-417f-bf3c-e4743e830a2c",
+	"Authorization" : vars.token,
+	"x-anypnt-env-id" : "2b738888-2a3f-48b7-a62c-eeba07e95f13",
+	"Content-Type" : "application/json"
+}]]]></http:headers>
+		</http:request>
+	</flow>
+</mule>
